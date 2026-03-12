@@ -1,0 +1,32 @@
+## Interface: 120001, 120005
+## Title: AutoQueue + AutoSignLFG
+## Notes: Auto-accepte role checks
+## Author: Azaleth
+## Version: 1.1.1
+## SavedVariables: AutoAcceptQueueDB
+## OptionalDeps: LibStub, LibDataBroker-1.1, LibDBIcon-1.0
+
+## X-Curse-Project-ID: 1434055
+## X-Wago-ID: b6mvvYKP
+
+## Category-enUS: Dungeons & Raids
+## Category-deDE: Dungeons & Schlachtzüge
+## Category-esES: Mazmorras y bandas
+## Category-esMX: Calabozos y bandas
+## Category-frFR: Donjons et raids
+## Category-itIT: Spedizioni e incursioni
+## Category-koKR: 던전 및 공격대
+## Category-ptBR: Masmorras e Raides
+## Category-ruRU: Подземелья и рейды
+## Category-zhCN: 地下城和团队副本
+## Category-zhTW: 地城與團隊
+
+# Libraries
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+
+# Core
+AutoQueue.lua
+AutoSignLFG.lua
