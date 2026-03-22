@@ -11,6 +11,7 @@ I combined 2 WeakAuras into a standalone addon, since WeakAuras no longer works.
 ### AutoQueue
 * **Automatic Accept:** Automatically clicks the **"Accept"** button when your group leader signs up for an activity.
 * **Auto Role:** Automatically confirms your role based on your current specialization. (DPS, heal, tank)
+  (e.g. if you are in a healing spec, it will sign you in a healing role. If you switch to dps, it will sign you in a dps role, without needing to turn off the addon).
 * **Minimap Button:** Includes a simple minimap icon to toggle the feature on/off, allowing you to switch roles or preferences easily.
 
 ### AutoSignLFG
