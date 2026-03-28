@@ -14,7 +14,7 @@ I combined 2 WeakAuras into a standalone addon, since WeakAuras no longer works.
 *   **Auto Role:** Automatically confirms your role based on your current specialization. (DPS, heal, tank)  
     (e.g. if you are in a healing spec, it will sign you in a healing role. If you switch to dps, it will sign you in a dps role, without needing to turn off the addon).
 *   **Multi-Roles:** `Right-click` the minimap icon to queue for multiple roles or a different spec. If no selection is made, your current spec applies. Settings are saved per character.
-*   **Persistent note:** Your note will be saved between different queues. (To include a note, hold `Shift` and double-click to queue via the standard method.)
+*   **Persistent note:** Your note will be saved between different queues. _(To include a note, hold `Shift` and double-click to queue via the standard method.)_
 *   **Minimap Button:** Includes a simple minimap icon to toggle the feature on/off, allowing you to switch roles or preferences easily.
 
 ### AutoSignLFG
