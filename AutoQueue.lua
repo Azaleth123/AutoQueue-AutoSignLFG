@@ -424,8 +424,8 @@ AutoAcceptQueueLDB = LDB:NewDataObject(addonName, {
         tt:AddLine("Detected role: " .. GetRoleLabel())
         tt:AddLine("Queue roles: "   .. GetRoleOverrideLabel())
         tt:AddLine(" ")
-        tt:AddLine("|cffb048f8Left click:|r On / Off")
-        tt:AddLine("|cffb048f8Right click:|r Role selection")
+        tt:AddLine("|cffb048f8Left-click:|r On / Off")
+        tt:AddLine("|cffb048f8Right-click:|r Role selection")
     end,
 })
 
