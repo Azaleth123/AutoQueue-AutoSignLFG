@@ -391,9 +391,21 @@ local function UpdateIcon()
     end
 end
 
+local _aqMinimapBtn = nil
+
+local function RefreshTooltip()
+    if _aqMinimapBtn and _aqMinimapBtn:IsMouseOver() then
+        local onLeave = _aqMinimapBtn:GetScript("OnLeave")
+        local onEnter = _aqMinimapBtn:GetScript("OnEnter")
+        if onLeave then onLeave(_aqMinimapBtn) end
+        if onEnter then onEnter(_aqMinimapBtn) end
+    end
+end
+
 local function ToggleMode()
     AutoAcceptQueueCharDB.active = not AutoAcceptQueueCharDB.active
     UpdateIcon()
+    RefreshTooltip()
 end
 
 local LDB    = LibStub("LibDataBroker-1.1")
@@ -413,13 +425,17 @@ AutoAcceptQueueLDB = LDB:NewDataObject(addonName, {
         tt:AddLine("|cffb048f8AutoQueue|r")
         tt:AddLine(" ")
         if AutoAcceptQueueCharDB.active then
-            tt:AddLine("|cff00ff00Status: On|r")
-            tt:AddLine("Lets you auto click the ''Accept'' when your")
-            tt:AddLine("group leader tries to sign up for something.")
+            tt:AddLine("|cff00ff00Auto Accept Queue: On|r")
         else
-            tt:AddLine("|cffff0000Status: Off|r")
+            tt:AddLine("|cffff0000Auto Accept Queue: Off|r")
             tt:AddLine("Auto-accept is currently disabled.")
         end
+        if AutoAcceptQueueCharDB.autoSignLFG then
+            tt:AddLine("|cff00ff00Double-click to sign up: On|r")
+        else
+            tt:AddLine("|cffff0000Double-click to sign up: Off|r")
+        end
+        tt:AddLine("Hold SHIFT to put a note.")
         tt:AddLine(" ")
         tt:AddLine("Detected role: " .. GetRoleLabel())
         tt:AddLine("Queue roles: "   .. GetRoleOverrideLabel())
@@ -449,6 +465,17 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         UpdateIcon()
         SetupPersistNoteHooks()
 
+        _aqMinimapBtn = DBIcon:GetMinimapButton(addonName)
+        if _aqMinimapBtn then
+            local _origEnter = _aqMinimapBtn:GetScript("OnEnter")
+            local _origLeave = _aqMinimapBtn:GetScript("OnLeave")
+            _aqMinimapBtn:SetScript("OnEnter", function(self)
+                if _origEnter then _origEnter(self) end
+            end)
+            _aqMinimapBtn:SetScript("OnLeave", function(self)
+                if _origLeave then _origLeave(self) end
+            end)
+        end
     elseif event == "ADDON_LOADED" and arg1 == "Blizzard_LFGList" then
         SetupSecureHooks()
 
