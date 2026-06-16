@@ -300,6 +300,19 @@ local function HandleRoleCheck()
     CompleteLFGRoleCheck(true)
 end
 
+-- Polling fallback: vérifie toutes les 0.4s si le popup LFD est visible
+-- Complète le role check même si LFG_ROLE_CHECK_SHOW a été raté
+local function ThinkLFD()
+    if LFDRoleCheckPopup and LFDRoleCheckPopup:IsVisible() then
+        if AutoAcceptQueueCharDB.active then
+            HandleRoleCheck()
+        end
+        C_Timer.After(0.2, ThinkLFD)
+    else
+        C_Timer.After(0.4, ThinkLFD)
+    end
+end
+
 -- Auto-confirms the Group Finder sign-up dialog with the correct roles
 local function SetupApplicationDialog()
     if LFGListApplicationDialog then
@@ -464,6 +477,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         DBIcon:Register(addonName, AutoAcceptQueueLDB, AutoAcceptQueueCharDB.minimap)
         UpdateIcon()
         SetupPersistNoteHooks()
+        ThinkLFD()
 
         _aqMinimapBtn = DBIcon:GetMinimapButton(addonName)
         if _aqMinimapBtn then
