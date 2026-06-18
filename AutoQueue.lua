@@ -290,6 +290,8 @@ end
 local lfgInitialized = false
 
 -- Confirms the LFD role check with the correct role (override or active spec)
+local _roleCheckPrinted = false
+
 local function HandleRoleCheck()
     if not AutoAcceptQueueCharDB.autoSignLFG then return end
     if not AutoAcceptQueueCharDB.active then return end
@@ -297,6 +299,19 @@ local function HandleRoleCheck()
     local isTank, isHealer, isDPS = GetEffectiveRoles()
     local isLeader = GetLFGRoles()
     SetLFGRoles(isLeader, isTank, isHealer, isDPS)
+
+    if not _roleCheckPrinted then
+        _roleCheckPrinted = true
+        if not IsInGroup(LE_PARTY_CATEGORY_HOME) then
+            local roles = {}
+            if isTank   then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-tank",   14, 14) .. " |cff00aeff Tank|r")   end
+            if isHealer then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-healer", 14, 14) .. " |cff00ff7f Healer|r") end
+            if isDPS    then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-dps",    14, 14) .. " |cffff6060 DPS|r")    end
+            print("|cffb048f8AutoQueue:|r Signed up as: " .. table.concat(roles, ",  "))
+        end
+        C_Timer.After(2, function() _roleCheckPrinted = false end)
+    end
+
     CompleteLFGRoleCheck(true)
 end
 
@@ -313,15 +328,30 @@ local function ThinkLFD()
     end
 end
 
+local _applicationDialogHandled = false
+
 -- Auto-confirms the Group Finder sign-up dialog with the correct roles
 local function SetupApplicationDialog()
     if LFGListApplicationDialog then
-        LFGListApplicationDialog:SetScript("OnShow", function()
+        LFGListApplicationDialog:HookScript("OnShow", function()
             if not AutoAcceptQueueCharDB.autoSignLFG then return end
+            if _applicationDialogHandled then return end
             if not IsShiftKeyDown() then
+                _applicationDialogHandled = true
+                C_Timer.After(0.5, function() _applicationDialogHandled = false end)
+
                 local isTank, isHealer, isDPS = GetEffectiveRoles()
                 local isLeader = GetLFGRoles()
                 SetLFGRoles(isLeader, isTank, isHealer, isDPS)
+
+                if not IsInGroup(LE_PARTY_CATEGORY_HOME) then
+                    local roles = {}
+                    if isTank   then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-tank",   14, 14) .. " |cff00aeff Tank|r")   end
+                    if isHealer then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-healer", 14, 14) .. " |cff00ff7f Healer|r") end
+                    if isDPS    then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-dps",    14, 14) .. " |cffff6060 DPS|r")    end
+                    print("|cffb048f8AutoQueue:|r Signed up as: " .. table.concat(roles, ",  "))
+                end
+
                 LFGListApplicationDialog.SignUpButton:Click()
             end
         end)
