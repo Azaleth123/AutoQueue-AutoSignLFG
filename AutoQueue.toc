@@ -2,7 +2,7 @@
 ## Title: AutoQueue + AutoSignLFG
 ## Notes: Auto-accept role checks
 ## Author: Azaleth
-## Version: 1.4.3
+## Version: 1.5
 ## SavedVariablesPerCharacter: AutoAcceptQueueCharDB
 ## OptionalDeps: LibStub, LibDataBroker-1.1, LibDBIcon-1.0
 
@@ -29,3 +29,4 @@ Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 
 # Core
 AutoQueue.lua
+AutoQueueRoleBar.lua
