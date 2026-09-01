@@ -38,206 +38,6 @@ local function GetEffectiveRoles()
     end
 end
 
--- Returns which roles are available for the current class (scans all specs)
-local function GetAvailableRoles()
-    local available = { tank = false, healer = false, dps = false }
-    local numSpecs = GetNumSpecializations()
-    for i = 1, numSpecs do
-        local _, _, _, _, role = GetSpecializationInfo(i)
-        if role == "TANK"    then available.tank   = true end
-        if role == "HEALER"  then available.healer = true end
-        if role == "DAMAGER" then available.dps    = true end
-    end
-    return available
-end
-
----------------------------------------------------------
--- ROLE SELECTION POPUP (minimap right-click)
----------------------------------------------------------
-
-local rolePopup = nil
-
-local ROLE_LABELS = {
-    tank   = "|cff00aeefTank|r",
-    healer = "|cff00ff7fHeal|r",
-    dps    = "|cffff6060DPS|r",
-}
-
-local roleButtons = {}
-
-local function UpdateRoleButtons()
-    local db        = AutoAcceptQueueCharDB.roleOverride
-    local available = GetAvailableRoles()
-
-    for role, btn in pairs(roleButtons) do
-        if not available[role] then
-            -- Rôle impossible pour cette classe : désactivé visuellement et non cliquable
-            db[role] = false  -- force à false au cas où il était coché avant
-            btn:EnableMouse(true)
-            btn.icon:SetDesaturated(true)
-            btn.icon:SetAlpha(0.25)
-            btn.check:Hide()
-            if btn.lockIcon then btn.lockIcon:Show() end
-        elseif db[role] then
-            btn:EnableMouse(true)
-            btn.icon:SetDesaturated(false)
-            btn.icon:SetAlpha(1.0)
-            btn.check:Show()
-            if btn.lockIcon then btn.lockIcon:Hide() end
-        else
-            btn:EnableMouse(true)
-            btn.icon:SetDesaturated(true)
-            btn.icon:SetAlpha(0.5)
-            btn.check:Hide()
-            if btn.lockIcon then btn.lockIcon:Hide() end
-        end
-    end
-end
-
-local function CreateRolePopup()
-    if rolePopup then
-        rolePopup:Show()
-        return
-    end
-
-    local f = CreateFrame("Frame", "AutoQueueRolePopup", UIParent, "BackdropTemplate")
-    f:SetSize(300, 150)
-    f:SetFrameStrata("DIALOG")
-    f:SetBackdrop({
-        bgFile   = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile     = true, tileSize = 32, edgeSize = 32,
-        insets   = { left = 11, right = 11, top = 11, bottom = 10 },
-    })
-    f:SetBackdropColor(0.08, 0.08, 0.08, 1)
-    f:SetMovable(true)
-    f:EnableMouse(true)
-    f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", f.StartMoving)
-    f:SetScript("OnDragStop", f.StopMovingOrSizing)
-    f:SetClampedToScreen(true)
-
-    -- Title
-    local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", f, "TOP", 0, -14)
-    title:SetText("|cffb048f8AutoQueue|r - Preferred Roles")
-
-    -- Subtitle
-    local subtitle = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    subtitle:SetPoint("TOP", title, "BOTTOM", 0, -2)
-    subtitle:SetText("|cffaaaaaa(none checked = use active spec role)|r")
-
-    -- Role buttons
-    local roles  = { "tank", "healer", "dps" }
-
-    for i, role in ipairs(roles) do
-        -- Outer frame: clickable, sized to show one icon
-        local btn = CreateFrame("Frame", "AutoQueueRoleBtn_" .. role, f)
-        btn:SetSize(64, 64)
-        local totalWidth = 3 * 64 + 2 * 11
-        local startX = -(totalWidth / 2) + 32 + (i - 1) * 75
-        btn:SetPoint("TOP", f, "TOP", startX, -55)
-        btn:EnableMouse(true)
-
-        local icon = btn:CreateTexture(nil, "BACKGROUND")
-        icon:SetSize(56, 56)
-        -- Fine-tune centering per role (spritesheet padding is uneven)
-        local xOffset = (role == "tank") and -1 or -4
-        local yOffset = (role == "healer") and -3 or 0
-        icon:SetPoint("CENTER", btn, "CENTER", xOffset, yOffset)
-
-        -- Role spritesheet: 256x256, each icon is 64x64 (0.25 per tile)
-        -- Row 1 (top=0, bottom=0.5): col1=tank, col2=healer (with ~8px top padding on heal)
-        -- Row 2 (top=0.5): col1=leader, col2=dps
-        icon:SetTexture("Interface\\LFGFRAME\\UI-LFG-Icon-Roles")
-        if role == "tank" then
-            icon:SetTexCoord(0.00, 0.25, 0.25, 0.50)
-        elseif role == "healer" then
-            icon:SetTexCoord(0.25, 0.50, 0.00, 0.25)
-        elseif role == "dps" then
-            icon:SetTexCoord(0.25, 0.50, 0.25, 0.50)
-        end
-        btn.icon = icon
-
-        -- Hover highlight
-        local hl = btn:CreateTexture(nil, "HIGHLIGHT")
-        hl:SetAllPoints(btn)
-        hl:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
-        hl:SetBlendMode("ADD")
-
-        -- Checkbox background (visible even when unchecked)
-        local checkBG = btn:CreateTexture(nil, "ARTWORK")
-        checkBG:SetTexture("Interface\\Buttons\\UI-CheckBox-Up")
-        checkBG:SetSize(26, 26)
-        checkBG:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", 6, -6)
-
-        -- Checkmark overlay (the green check)
-        local check = btn:CreateTexture(nil, "OVERLAY")
-        check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
-        check:SetSize(26, 26)
-        check:SetAllPoints(checkBG)
-        btn.check = check
-
-        -- Lock overlay: red cross texture (always loaded by Blizzard)
-        local lockTxt = btn:CreateTexture(nil, "OVERLAY")
-        lockTxt:SetTexture("Interface\\RAIDFRAME\\ReadyCheck-NotReady")
-        lockTxt:SetSize(30, 30)
-        lockTxt:SetPoint("CENTER", btn, "CENTER", 0, 0)
-        lockTxt:Hide()
-        btn.lockIcon = lockTxt
-
-        btn:SetScript("OnMouseDown", function()
-            local avail = GetAvailableRoles()
-            if not avail[role] then return end
-            AutoAcceptQueueCharDB.roleOverride[role] = not AutoAcceptQueueCharDB.roleOverride[role]
-            UpdateRoleButtons()
-        end)
-
-        btn:SetScript("OnEnter", function(self)
-            local avail = GetAvailableRoles()
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:SetText(ROLE_LABELS[role])
-            if not avail[role] then
-                GameTooltip:AddLine("|cffaaaaaaNot available for this class|r")
-            else
-                GameTooltip:AddLine(AutoAcceptQueueCharDB.roleOverride[role] and "|cff00ff00Enabled|r" or "|cffff4444Disabled|r")
-            end
-            GameTooltip:Show()
-        end)
-        btn:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-        end)
-
-        roleButtons[role] = btn
-    end
-
-    -- Close button
-    local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", 1, 1)
-    closeBtn:SetScript("OnClick", function() f:Hide() end)
-
-    rolePopup = f
-
-    -- Fermeture avec la touche Echap
-    tinsert(UISpecialFrames, "AutoQueueRolePopup")
-
-    f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-    UpdateRoleButtons()
-end
-
-local function ShowRolePopup()
-    if rolePopup and rolePopup:IsShown() then
-        rolePopup:Hide()
-    else
-        if not rolePopup then
-            CreateRolePopup()
-        else
-            UpdateRoleButtons()
-            rolePopup:Show()
-        end
-    end
-end
-
 ---------------------------------------------------------
 -- AUTOQUEUE - Secure button for auto-accepting dungeon ready
 ---------------------------------------------------------
@@ -610,8 +410,6 @@ AutoAcceptQueueLDB = LDB:NewDataObject(addonName, {
     OnClick = function(_, button)
         if button == "LeftButton" then
             ToggleMode()
-        elseif button == "RightButton" then
-            ShowRolePopup()
         end
     end,
     OnTooltipShow = function(tt)
@@ -629,7 +427,6 @@ AutoAcceptQueueLDB = LDB:NewDataObject(addonName, {
         tt:AddLine("Queue roles: "   .. GetRoleOverrideLabel())
         tt:AddLine(" ")
         tt:AddLine("|cffb048f8Left-click:|r On / Off")
-        tt:AddLine("|cffb048f8Right-click:|r Role selection")
     end,
 })
 
@@ -713,7 +510,6 @@ local function PrintStatus()
     print("|cffb048f8Commands:|r")
     print("|cffffffff/aq|r |cff00ff00on|r / |cffff0000off|r - Enable / Disable AutoQueue")
     print("|cffffffff/aq minimap|r - Show / Hide minimap icon")
-    print("|cffffffff/aq roles|r - Open role selection popup")
     print("------------------------")
 end
 
@@ -740,8 +536,6 @@ SlashCmdList["AUTOQUEUE"] = function(msg)
             DBIcon:Show(addonName)
             print("|cffb048f8AutoQueue:|r Minimap icon visible")
         end
-    elseif msg == "roles" then
-        ShowRolePopup()
     else
         PrintStatus()
     end

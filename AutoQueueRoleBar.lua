@@ -37,7 +37,6 @@ local BAR_HEIGHT = 92 -- +14 par rapport à avant, pour la 2e ligne de texte
 
 local bar = CreateFrame("Frame", "AutoQueueRoleBar", UIParent, "BackdropTemplate")
 bar:SetSize(BAR_WIDTH, BAR_HEIGHT)
-bar:SetFrameStrata("HIGH")
 bar:SetBackdrop({
     bgFile   = "Interface\\Buttons\\WHITE8X8",
     edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -179,6 +178,23 @@ local function AnchorBar()
     bar:SetPoint("BOTTOM", PVEFrame, "TOP", 100, -1)
 end
 
+-- Aligne la strata + le frame level de la barre sur ceux de PVEFrame une
+-- fois qu'elle en est un vrai enfant (SetParent(PVEFrame), fait plus bas
+-- dans le watcher). Un enfant réel suit le raise de son parent nativement
+-- (c'est ce que fait RaiderIO, qui reste bien accroché à PVEFrame quand
+-- on la déplace) — inutile de repoller en boucle comme avant.
+local function SyncBarLayer()
+    if not PVEFrame then return end
+    local pveStrata = PVEFrame:GetFrameStrata()
+    local pveLevel  = PVEFrame:GetFrameLevel()
+    if bar:GetFrameStrata() ~= pveStrata then
+        bar:SetFrameStrata(pveStrata)
+    end
+    if bar:GetFrameLevel() ~= pveLevel + 1 then
+        bar:SetFrameLevel(pveLevel + 1)
+    end
+end
+
 local function ShowBarIfNeeded()
     EnsureDB()
     if AutoAcceptQueueCharDB.roleBar.hidden then
@@ -186,6 +202,7 @@ local function ShowBarIfNeeded()
         return
     end
     AnchorBar()
+    SyncBarLayer()
     UpdateRoleBar()
     bar:Show()
 end
@@ -337,6 +354,9 @@ watcher:SetScript("OnEvent", function()
     toggleBtn:SetFrameLevel(PVEFrame:GetFrameLevel() + 50)
     AnchorToggleButton()
     UpdateToggleTexture()
+
+    bar:SetParent(PVEFrame)
+    SyncBarLayer()
 
     PVEFrame:HookScript("OnShow", ShowBarIfNeeded)
     PVEFrame:HookScript("OnShow", ShowFirstTimeTutorial)
