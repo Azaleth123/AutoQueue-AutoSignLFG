@@ -133,10 +133,13 @@ local function SetupRoleCheckHook()
 end
 
 local _applicationDialogHandled = false
+local _applicationDialogHooked  = false
 
 -- Auto-confirms the Group Finder sign-up dialog with the correct roles
 local function SetupApplicationDialog()
+    if _applicationDialogHooked then return end -- appelé à chaque PLAYER_ENTERING_WORLD : ne pas empiler les hooks
     if LFGListApplicationDialog then
+        _applicationDialogHooked = true
         LFGListApplicationDialog:HookScript("OnShow", function()
             if _applicationDialogHandled then return end
             if not IsShiftKeyDown() then
@@ -235,11 +238,12 @@ local function ClearBlizzardDeclineBlock(resultID)
     local partyGUID = searchResultInfo.partyGUID
     if not partyGUID or issecretvalue(partyGUID) then return end
 
-    LFGListFrame.declines[partyGUID] = nil -- remove from Blizzard's list to allow re-applying to this group
-
-    if LFGListFrame.SearchPanel then
-        LFGListSearchPanel_UpdateResults(LFGListFrame.SearchPanel) -- refresh without re-sorting
-    end
+    -- ATTENTION : c'est une écriture dans une table Blizzard depuis du code addon
+    -- (laisse un "nil tainted" dans declines). On la garde pour la fonctionnalité,
+    -- mais on n'appelle plus LFGListSearchPanel_UpdateResults() ici : Blizzard vient
+    -- de rafraîchir la liste dans son propre handler, et un clic sur l'entrée
+    -- redéclenche de toute façon un refresh sécurisé.
+    LFGListFrame.declines[partyGUID] = nil
 end
 
 ---------------------------------------------------------
@@ -274,20 +278,13 @@ local function ColorDeclinedGroupName(self)
     end
 end
 
-local function OnLFGListSearchPanelUpdateResultList(self)
-    if self then
-        LFGListSearchPanel_UpdateResults(self)
-    end
-end
-
 local _declinedColoringHooked = false
 local function SetupDeclinedGroupColoring()
     if _declinedColoringHooked then return end
-    if not LFGListSearchEntry_Update or not LFGListSearchPanel_UpdateResultList then
+    if not LFGListSearchEntry_Update then
         return
     end
     hooksecurefunc("LFGListSearchEntry_Update", ColorDeclinedGroupName)
-    hooksecurefunc("LFGListSearchPanel_UpdateResultList", OnLFGListSearchPanelUpdateResultList)
     _declinedColoringHooked = true
 end
 
@@ -336,26 +333,29 @@ end
 
 ---------------------------------------------------------
 -- PERSIST SIGN-UP NOTE
+-- Remplace LFGListApplicationDialog_Show (global Blizzard) par une copie
+-- de la version actuelle SANS l'appel à C_LFGList.ClearApplicationTextFields(),
+-- ce qui garde la note d'une inscription à l'autre. L'EditBox est verrouillée
+-- (SetSecurityDisableSetText), donc c'est la seule façon de la conserver.
+-- ATTENTION : cette fonction s'exécute en tainted (StaticPopupSpecial_Show
+-- inclus). C'est le premier suspect si des erreurs de taint reviennent ;
+-- à recomparer avec LFGList.lua de Blizzard à chaque patch.
 ---------------------------------------------------------
 
-local _persistOriginalFunc = nil
-local _persistPatchedFunc  = nil
+local _persistNoteHooked = false
 
 local function SetupPersistNoteHooks()
-    _persistOriginalFunc = LFGListApplicationDialog_Show
+    if _persistNoteHooked then return end
+    if not LFGListApplicationDialog_Show then return end
+    _persistNoteHooked = true
 
-    _persistPatchedFunc = function(self, resultID)
-        if resultID then
-            local searchResultInfo = C_LFGList.GetSearchResultInfo(resultID)
-            self.resultID   = resultID
-            self.activityID = searchResultInfo and searchResultInfo.activityID or 0
-        end
+    LFGListApplicationDialog_Show = function(self, resultID)
+        if not resultID then return end
+        self.resultID = resultID
         LFGListApplicationDialog_UpdateRoles(self)
         StaticPopupSpecial_Show(self)
         -- C_LFGList.ClearApplicationTextFields() intentionally omitted
     end
-
-    LFGListApplicationDialog_Show = _persistPatchedFunc
 end
 
 ---------------------------------------------------------
