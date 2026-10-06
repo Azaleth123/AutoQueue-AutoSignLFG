@@ -1,4 +1,6 @@
 local addonName = "AutoAcceptQueue"
+local _, ns = ...
+local L = ns.L -- défini dans Locale/enUS.lua (à charger avant ce fichier dans le .toc)
 
 -- Saved variables - Default initialization
 AutoAcceptQueueCharDB = AutoAcceptQueueCharDB or {
@@ -21,9 +23,9 @@ end
 -- Returns a colored label for display (tooltip, /aq status)
 local function GetRoleLabel()
     local role = GetCurrentRole()
-    if role == "TANK"   then return "|cff00aeefTank|r"   end
-    if role == "HEALER" then return "|cff00ff7fHealer|r" end
-    return "|cffff6060DPS|r"
+    if role == "TANK"   then return "|cff00aeef" .. L.ROLE_TANK   .. "|r" end
+    if role == "HEALER" then return "|cff00ff7f" .. L.ROLE_HEALER .. "|r" end
+    return "|cffff6060" .. L.ROLE_DPS .. "|r"
 end
 
 -- Returns the effective roles to queue as (override or active spec)
@@ -88,10 +90,10 @@ local function HandleRoleCheck()
         _roleCheckPrinted = true
         if not IsInGroup(LE_PARTY_CATEGORY_HOME) then
             local roles = {}
-            if isTank   then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-tank",   14, 14) .. " |cff00aeff Tank|r")   end
-            if isHealer then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-healer", 14, 14) .. " |cff00ff7f Healer|r") end
-            if isDPS    then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-dps",    14, 14) .. " |cffff6060 DPS|r")    end
-            print("|cffb048f8AutoQueue:|r Signed up as: " .. table.concat(roles, ",  "))
+            if isTank   then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-tank",   14, 14) .. " |cff00aeff " .. L.ROLE_TANK   .. "|r")   end
+            if isHealer then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-healer", 14, 14) .. " |cff00ff7f " .. L.ROLE_HEALER .. "|r") end
+            if isDPS    then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-dps",    14, 14) .. " |cffff6060 " .. L.ROLE_DPS    .. "|r")    end
+            print("|cffb048f8AutoQueue:|r " .. L.SIGNED_UP_AS:format(table.concat(roles, ",  ")))
         end
         C_Timer.After(2, function() _roleCheckPrinted = false end)
     end
@@ -152,10 +154,10 @@ local function SetupApplicationDialog()
 
                 if not IsInGroup(LE_PARTY_CATEGORY_HOME) then
                     local roles = {}
-                    if isTank   then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-tank",   14, 14) .. " |cff00aeff Tank|r")   end
-                    if isHealer then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-healer", 14, 14) .. " |cff00ff7f Healer|r") end
-                    if isDPS    then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-dps",    14, 14) .. " |cffff6060 DPS|r")    end
-                    print("|cffb048f8AutoQueue:|r Signed up as: " .. table.concat(roles, ",  "))
+                    if isTank   then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-tank",   14, 14) .. " |cff00aeff " .. L.ROLE_TANK   .. "|r")   end
+                    if isHealer then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-healer", 14, 14) .. " |cff00ff7f " .. L.ROLE_HEALER .. "|r") end
+                    if isDPS    then table.insert(roles, CreateAtlasMarkup("roleicon-tiny-dps",    14, 14) .. " |cffff6060 " .. L.ROLE_DPS    .. "|r")    end
+                    print("|cffb048f8AutoQueue:|r " .. L.SIGNED_UP_AS:format(table.concat(roles, ",  ")))
                 end
 
                 LFGListApplicationDialog.SignUpButton:Click()
@@ -366,12 +368,12 @@ local function GetRoleOverrideLabel()
     local db = AutoAcceptQueueCharDB.roleOverride
     local anyChecked = db.tank or db.healer or db.dps
     if not anyChecked then
-        return "|cffaaaaaa(active spec)|r"
+        return "|cffaaaaaa" .. L.ACTIVE_SPEC .. "|r"
     end
     local parts = {}
-    if db.tank   then table.insert(parts, "|cff00aeefTank|r")   end
-    if db.healer then table.insert(parts, "|cff00ff7fHeal|r")   end
-    if db.dps    then table.insert(parts, "|cffff6060DPS|r")    end
+    if db.tank   then table.insert(parts, "|cff00aeef" .. L.ROLE_TANK       .. "|r") end
+    if db.healer then table.insert(parts, "|cff00ff7f" .. L.ROLE_HEAL_SHORT .. "|r") end
+    if db.dps    then table.insert(parts, "|cffff6060" .. L.ROLE_DPS        .. "|r") end
     return table.concat(parts, ", ")
 end
 
@@ -416,17 +418,17 @@ AutoAcceptQueueLDB = LDB:NewDataObject(addonName, {
         tt:AddLine("|cffb048f8AutoQueue|r")
         tt:AddLine(" ")
         if AutoAcceptQueueCharDB.active then
-            tt:AddLine("|cff00ff00Auto Accept Queue: On|r")
+            tt:AddLine("|cff00ff00" .. L.TT_ACTIVE_ON .. "|r")
         else
-            tt:AddLine("|cffff0000Auto Accept Queue: Off|r")
-            tt:AddLine("Auto-accept is currently disabled.")
+            tt:AddLine("|cffff0000" .. L.TT_ACTIVE_OFF .. "|r")
+            tt:AddLine(L.TT_DISABLED_NOTE)
         end
-        tt:AddLine("Hold SHIFT to put a note.")
+        tt:AddLine(L.HOLD_SHIFT_NOTE)
         tt:AddLine(" ")
-        tt:AddLine("Detected role: " .. GetRoleLabel())
-        tt:AddLine("Queue roles: "   .. GetRoleOverrideLabel())
+        tt:AddLine(L.DETECTED_ROLE:format(GetRoleLabel()))
+        tt:AddLine(L.QUEUE_ROLES:format(GetRoleOverrideLabel()))
         tt:AddLine(" ")
-        tt:AddLine("|cffb048f8Left-click:|r On / Off")
+        tt:AddLine("|cffb048f8" .. L.LEFT_CLICK .. "|r " .. L.TOGGLE_ONOFF)
     end,
 })
 
@@ -498,18 +500,18 @@ end)
 ---------------------------------------------------------
 
 local function PrintStatus()
-    local aqStatus   = AutoAcceptQueueCharDB.active      and "|cff00ff00On|r" or "|cffff0000Off|r"
+    local aqStatus   = AutoAcceptQueueCharDB.active      and ("|cff00ff00" .. L.ON .. "|r") or ("|cffff0000" .. L.OFF .. "|r")
     print("------------------------")
-    print("|cffb048f8AutoQueue:|r Status:")
-    print("  • AutoQueue: "        .. aqStatus)
-    print("  • Detected role: "    .. GetRoleLabel())
-    print("  • Queue roles: "      .. GetRoleOverrideLabel())
+    print("|cffb048f8AutoQueue:|r " .. L.STATUS_HEADER)
+    print("  • " .. L.STATUS_AUTOQUEUE:format(aqStatus))
+    print("  • " .. L.DETECTED_ROLE:format(GetRoleLabel()))
+    print("  • " .. L.QUEUE_ROLES:format(GetRoleOverrideLabel()))
     print(" ")
-    print("|cffb048f8AutoQueue|r = Auto-accept when your leader signs up for something. Also signs you up automatically in LFG/Group Finder. (Hold Shift to sign up manually)")
+    print("|cffb048f8AutoQueue|r = " .. L.STATUS_DESC)
     print(" ")
-    print("|cffb048f8Commands:|r")
-    print("|cffffffff/aq|r |cff00ff00on|r / |cffff0000off|r - Enable / Disable AutoQueue")
-    print("|cffffffff/aq minimap|r - Show / Hide minimap icon")
+    print("|cffb048f8" .. L.COMMANDS .. "|r")
+    print("|cffffffff/aq|r |cff00ff00on|r / |cffff0000off|r " .. L.CMD_ONOFF)
+    print("|cffffffff/aq minimap|r " .. L.CMD_MINIMAP)
     print("------------------------")
 end
 
@@ -522,19 +524,19 @@ SlashCmdList["AUTOQUEUE"] = function(msg)
     if msg == "on" then
         AutoAcceptQueueCharDB.active = true
         UpdateIcon()
-        print("|cffb048f8AutoQueue:|r On")
+        print("|cffb048f8AutoQueue:|r " .. L.ON)
     elseif msg == "off" then
         AutoAcceptQueueCharDB.active = false
         UpdateIcon()
-        print("|cffb048f8AutoQueue:|r Off")
+        print("|cffb048f8AutoQueue:|r " .. L.OFF)
     elseif msg == "minimap" then
         AutoAcceptQueueCharDB.minimap.hide = not AutoAcceptQueueCharDB.minimap.hide
         if AutoAcceptQueueCharDB.minimap.hide then
             DBIcon:Hide(addonName)
-            print("|cffb048f8AutoQueue:|r Minimap icon hidden")
+            print("|cffb048f8AutoQueue:|r " .. L.MINIMAP_HIDDEN)
         else
             DBIcon:Show(addonName)
-            print("|cffb048f8AutoQueue:|r Minimap icon visible")
+            print("|cffb048f8AutoQueue:|r " .. L.MINIMAP_SHOWN)
         end
     else
         PrintStatus()

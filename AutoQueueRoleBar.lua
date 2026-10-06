@@ -1,3 +1,6 @@
+local _, ns = ...
+local L = ns.L -- défini dans Locale/enUS.lua (à charger avant ce fichier dans le .toc)
+
 local function EnsureDB()
     AutoAcceptQueueCharDB = AutoAcceptQueueCharDB or {}
     AutoAcceptQueueCharDB.roleOverride = AutoAcceptQueueCharDB.roleOverride or { tank = false, healer = false, dps = false }
@@ -21,9 +24,9 @@ local function GetAvailableRoles()
 end
 
 local ROLE_LABELS = {
-    tank   = "|cff00aeefTank|r",
-    healer = "|cff00ff7fHeal|r",
-    dps    = "|cffff6060DPS|r",
+    tank   = "|cff00aeef" .. L.ROLE_TANK       .. "|r",
+    healer = "|cff00ff7f" .. L.ROLE_HEAL_SHORT .. "|r",
+    dps    = "|cffff6060" .. L.ROLE_DPS        .. "|r",
 }
 
 ---------------------------------------------------------
@@ -32,7 +35,7 @@ local ROLE_LABELS = {
 local BTN_SIZE = 50
 local BTN_GAP  = 20
 local ROW_WIDTH = 3 * BTN_SIZE + 2 * BTN_GAP
-local BAR_WIDTH  = ROW_WIDTH + 50
+local BAR_WIDTH  = ROW_WIDTH + 110
 local BAR_HEIGHT = 92 -- +14 par rapport à avant, pour la 2e ligne de texte
 
 local bar = CreateFrame("Frame", "AutoQueueRoleBar", UIParent, "BackdropTemplate")
@@ -51,11 +54,11 @@ bar:Hide()
 -- précédent, donc il en faut un par ligne pour que les deux s'affichent.
 local subtitle1 = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 subtitle1:SetPoint("BOTTOM", bar, "BOTTOM", 0, 22)
-subtitle1:SetText("|cffaaaaaa(none checked = use active spec role)|r")
+subtitle1:SetText("|cffaaaaaa" .. L.SUBTITLE_NONE .. "|r")
 
 local subtitle2 = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 subtitle2:SetPoint("BOTTOM", bar, "BOTTOM", 0, 8)
-subtitle2:SetText("|cffaaaaaa(Hold SHIFT to put a note)|r")
+subtitle2:SetText("|cffaaaaaa" .. L.SUBTITLE_NOTE .. "|r")
 
 local roleButtons = {}
 local roles = { "tank", "healer", "dps" }
@@ -100,9 +103,9 @@ local function RefreshRoleTooltip(btn, role)
     GameTooltip:SetOwner(btn, "ANCHOR_BOTTOM")
     GameTooltip:SetText(ROLE_LABELS[role])
     if not avail[role] then
-        GameTooltip:AddLine("|cffaaaaaaNot available for this class|r")
+        GameTooltip:AddLine("|cffaaaaaa" .. L.NOT_AVAILABLE .. "|r")
     else
-        GameTooltip:AddLine(AutoAcceptQueueCharDB.roleOverride[role] and "|cff00ff00Enabled|r" or "|cffff4444Disabled|r")
+        GameTooltip:AddLine(AutoAcceptQueueCharDB.roleOverride[role] and ("|cff00ff00" .. L.ENABLED .. "|r") or ("|cffff4444" .. L.DISABLED .. "|r"))
     end
     GameTooltip:Show()
 end
@@ -267,7 +270,7 @@ end)
 toggleBtn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP", 50,0)
     GameTooltip:SetText("|cffb048f8AutoQueue|r")
-    GameTooltip:AddLine("Show / Hide the role selection")
+    GameTooltip:AddLine(L.TOGGLE_TT)
     GameTooltip:Show()
 end)
 toggleBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -305,17 +308,15 @@ tutorialText:SetPoint("TOPLEFT", tutorialTip, "TOPLEFT", 10, -10)
 tutorialText:SetWidth(240)
 tutorialText:SetJustifyH("LEFT")
 tutorialText:SetText(
-    "|cffb048f8AutoQueue|r: click here to show/hide the role selection, "
-    .. "letting you queue for multiple roles or a different spec. "
-    .. "If no selection is made, your current spec role applies.\n\n"
-    .. "Settings are saved per character.\n\n"
-    .. "|cffffff00Tip: you can double-click to queue faster.|r"
+    L.TUTORIAL_INTRO .. "\n\n"
+    .. L.TUTORIAL_SAVED .. "\n\n"
+    .. L.TUTORIAL_TIP
 )
 
 local tutorialClose = CreateFrame("Button", nil, tutorialTip, "UIPanelButtonTemplate")
 tutorialClose:SetSize(80, 22)
 tutorialClose:SetPoint("TOP", tutorialText, "BOTTOM", 0, -10)
-tutorialClose:SetText("Got it!")
+tutorialClose:SetText(L.GOT_IT)
 
 local function HideTutorial(markAsSeen)
     tutorialTip:Hide()
