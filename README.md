@@ -1,4 +1,4 @@
-# AutoQueue + AutoSignLFG
+# AutoQueue + AutoSignLF
 
 > **FRANÇAIS PLUS BAS**
 
