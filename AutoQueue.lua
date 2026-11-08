@@ -249,6 +249,109 @@ local function ClearBlizzardDeclineBlock(resultID)
 end
 
 ---------------------------------------------------------
+-- ELLESMEREUI GROUP FINDER COMPATIBILITY
+-- EllesmereUI's Group Finder module draws its own results list on top of
+-- Blizzard's and fades Blizzard's rows out: those rows never receive clicks
+-- anymore, so the OnDoubleClick set in InitializeButtons never fires.
+-- We hook EllesmereUI's own rows instead (Buttons exposing .resultID).
+-- If EllesmereUI's "quick sign-up" option is ON, EllesmereUI already opens the
+-- sign-up dialog itself on (double-)click and our OnShow hook on
+-- LFGListApplicationDialog confirms it: we stay out of the way then,
+-- otherwise we would sign up twice.
+---------------------------------------------------------
+
+local EUI_DOUBLE_CLICK_DELAY = 0.4 -- same window as EllesmereUI's own click counter
+
+local _euiHookedRows = setmetatable({}, { __mode = "k" })
+local _euiLastClickID, _euiLastClickTime = nil, 0
+
+-- Read-only copy of the checks done by Blizzard's / EllesmereUI's Sign Up button
+local function CanSignUpTo(resultID)
+    if not resultID or issecretvalue(resultID) then return false end
+    if LFGListApplicationDialog and LFGListApplicationDialog:IsShown() then return false end
+    if LFGListUtil_GetActiveQueueMessage and LFGListUtil_GetActiveQueueMessage(true) then return false end
+    if LFGListUtil_IsAppEmpowered and not LFGListUtil_IsAppEmpowered() then return false end
+    if IsInGroup(LE_PARTY_CATEGORY_HOME) and C_LFGList.IsCurrentlyApplying and C_LFGList.IsCurrentlyApplying() then
+        return false
+    end
+
+    local _, numActive = C_LFGList.GetNumApplications()
+    if type(numActive) == "number" and numActive >= (MAX_LFG_LIST_APPLICATIONS or 5) then return false end
+
+    local tank, healer, dps = C_LFGList.GetAvailableRoles()
+    if not (tank or healer or dps) then return false end
+
+    local info = SafeGetSearchResultInfo(resultID)
+    if not info or issecretvalue(info.isDelisted) or info.isDelisted then return false end
+
+    local _, status, pending = C_LFGList.GetApplicationInfo(resultID)
+    if issecretvalue(status) or issecretvalue(pending) then return false end
+    if status == "declined_delisted" then status = "none" end -- delisted then relisted = fresh group
+    return status == "none" and not pending
+end
+
+local function OnEUIRowClick(self, button)
+    if button ~= "LeftButton" then return end
+    local id = self.resultID
+    if not id then return end
+    if EllesmereUIDB and EllesmereUIDB.quickSignup then return end -- EllesmereUI handles the sign-up itself
+
+    local now = GetTime()
+    local isDouble = (_euiLastClickID == id) and ((now - _euiLastClickTime) < EUI_DOUBLE_CLICK_DELAY)
+    _euiLastClickID, _euiLastClickTime = id, now
+    if not isDouble then return end
+    _euiLastClickID = nil
+
+    if CanSignUpTo(id) then
+        -- AutoQueue's OnShow hook on the dialog picks the roles and confirms
+        -- (hold Shift to review the dialog yourself)
+        LFGListApplicationDialog_Show(LFGListApplicationDialog, id)
+    end
+end
+
+-- set further down (needs the declined-groups tables): per-row setup for the
+-- red/orange coloring of groups that declined us
+local OnEUIRowHooked
+
+-- EllesmereUI creates its rows lazily: list frame (child of the search panel)
+-- -> body -> rows. Rows are recognised by their fields, not by a name.
+local function HookEUIRows()
+    local sp = LFGListFrame and LFGListFrame.SearchPanel
+    if not sp then return end
+    for _, holder in ipairs({ sp:GetChildren() }) do
+        for _, body in ipairs({ holder:GetChildren() }) do
+            for _, row in ipairs({ body:GetChildren() }) do
+                if not _euiHookedRows[row] and row:GetObjectType() == "Button" and row.rr and row.under then
+                    _euiHookedRows[row] = true
+                    row:HookScript("OnClick", OnEUIRowClick)
+                    if OnEUIRowHooked and row.name then OnEUIRowHooked(row) end
+                end
+            end
+        end
+    end
+end
+
+local _euiScanPending = false
+local function ScheduleEUIScan()
+    if _euiScanPending then return end
+    _euiScanPending = true
+    C_Timer.After(0.2, function()
+        _euiScanPending = false
+        HookEUIRows()
+    end)
+end
+
+local _euiPanelHooked = false
+local function SetupEUICompat()
+    if _euiPanelHooked then return end
+    local sp = LFGListFrame and LFGListFrame.SearchPanel
+    if not sp then return end
+    _euiPanelHooked = true
+    -- rows only exist once the panel has been shown with results
+    sp:HookScript("OnShow", ScheduleEUIScan)
+end
+
+---------------------------------------------------------
 -- DECLINED / DELISTED GROUP COLORING
 ---------------------------------------------------------
 
@@ -288,6 +391,37 @@ local function SetupDeclinedGroupColoring()
     end
     hooksecurefunc("LFGListSearchEntry_Update", ColorDeclinedGroupName)
     _declinedColoringHooked = true
+end
+
+-- Same coloring on EllesmereUI's own list rows. EllesmereUI sets the name color
+-- every time it fills a row (always as the last step, after SetText), so we
+-- re-apply ours right after each of its SetTextColor calls.
+local _coloringEUIRow = false
+
+local function ColorEUIRowName(row)
+    local id = row.resultID
+    if not row.name or not id or issecretvalue(id) then return end
+    local key = GetGroupKey(SafeGetSearchResultInfo(id))
+    if not key then return end
+
+    local color
+    if IsGroupInTable(hardDeclinedGroups, key) then
+        color = COLOR_DECLINED_HARD
+    elseif IsGroupInTable(softDeclinedGroups, key) then
+        color = COLOR_DECLINED_SOFT
+    end
+    if not color then return end
+
+    _coloringEUIRow = true -- our own SetTextColor would re-trigger the hook below
+    row.name:SetTextColor(color.R, color.G, color.B)
+    _coloringEUIRow = false
+end
+
+OnEUIRowHooked = function(row)
+    hooksecurefunc(row.name, "SetTextColor", function()
+        if not _coloringEUIRow then ColorEUIRowName(row) end
+    end)
+    ColorEUIRowName(row) -- the row may already have been filled before we hooked it
 end
 
 -- possible newStatus values: declined, declined_full, declined_delisted, timedout
@@ -460,6 +594,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, arg2)
             SetupSecureHooks()
             SetupDeclinedGroupColoring()
             SetupGroupAgeTooltip()
+            SetupEUICompat()
         end
 
         _aqMinimapBtn = DBIcon:GetMinimapButton(addonName)
@@ -477,6 +612,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, arg2)
         SetupSecureHooks()
         SetupDeclinedGroupColoring()
         SetupGroupAgeTooltip()
+        SetupEUICompat()
 
     elseif event == "PLAYER_ENTERING_WORLD" then
         SetupApplicationDialog()
@@ -488,7 +624,11 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, arg2)
         lfgInitialized = false
         SetupDeclinedGroupColoring()
         SetupGroupAgeTooltip()
-        C_Timer.After(0.1, InitializeButtons)
+        SetupEUICompat()
+        C_Timer.After(0.1, function()
+            InitializeButtons() -- Blizzard's own rows (EllesmereUI list off, or results it can't read)
+            HookEUIRows()       -- EllesmereUI's rows
+        end)
 
     elseif event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
         OnLFGListApplicationStatusUpdated(arg1, arg2)

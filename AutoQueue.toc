@@ -1,8 +1,8 @@
-## Interface: 120100, 120105
+## Interface: 120105, 120107
 ## Title: AutoQueue + AutoSignLFG
 ## Notes: Auto-accept role checks
 ## Author: Azaleth
-## Version: 1.5.3
+## Version: 1.5.5
 ## SavedVariablesPerCharacter: AutoAcceptQueueCharDB
 ## OptionalDeps: LibStub, LibDataBroker-1.1, LibDBIcon-1.0
 
